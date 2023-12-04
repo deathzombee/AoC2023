@@ -15,116 +15,74 @@ func isSymbol(ch rune) bool {
 	return !unicode.IsDigit(ch) && ch != '.'
 }
 
-func checkAdjacent(grid [][]rune, x, y int) (bool, rune) {
-	rows := len(grid)
-	if rows == 0 {
-		fmt.Println("Grid is empty")
-		return false, ' ' // or handle the error as appropriate
-	}
-
-	for _, row := range grid {
-		if len(row) != rows {
-			fmt.Printf("Inconsistent row length found: %d expected, %d found\n", rows, len(row))
-			return false, ' ' // or handle the error as appropriate
-		}
-	}
-
-	cols := len(grid[0])
-
-	directions := []struct{ dx, dy int }{
-		{-1, -1}, {-1, 0}, {-1, 1},
+func checkAdjacent(grid [][]rune, x, y int) bool {
+	directions := []struct {
+		dx, dy int
+	}{
+		{-1, 0}, {1, 0},
 		{0, -1}, {0, 1},
-		{1, -1}, {1, 0}, {1, 1},
+		{-1, -1}, {-1, 1},
+		{1, -1}, {1, 1},
 	}
 
-	for _, dir := range directions {
-		newX, newY := x+dir.dx, y+dir.dy
-		if newX >= 0 && newY >= 0 && newX < rows && newY < cols {
+	for _, d := range directions {
+		newX, newY := x+d.dx, y+d.dy
+		if newX >= 0 && newY >= 0 && newX < len(grid) && newY < len(grid[0]) {
 			if isSymbol(grid[newX][newY]) {
-				return true, grid[newX][newY]
+				return true
 			}
 		}
 	}
-	return false, ' ' // No adjacent symbol found
+	return false
 }
 
-func extractFullNumber(grid [][]rune, x, y, dx, dy int) string {
-	extract := func(dx, dy int) string {
-		ix, iy := x, y
-		number := ""
-		for {
-			ix += dx
-			iy += dy
-			if ix < 0 || iy < 0 || ix >= len(grid) || iy >= len(grid[0]) || !isDigit(grid[ix][iy]) {
-				break
-			}
-			number += string(grid[ix][iy])
-		}
-		return number
+// Extracts the full number around position (x, y)
+
+func extractFullNumber(grid [][]rune, x, y int) (string, int) {
+	start := y
+	for start > 0 && isDigit(grid[x][start-1]) {
+		start--
 	}
 
-	// Reverse part1 and concatenate with current digit and part2
-	part1 := extract(-dx, -dy) // Extract backward
-	part2 := extract(dx, dy)   // Extract forward
-	reversedPart1 := reverseString(part1)
-	fullNumber := reversedPart1 + string(grid[x][y]) + part2
-	return fullNumber
-}
-
-func reverseString(s string) string {
-	runes := []rune(s)
-	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-		runes[i], runes[j] = runes[j], runes[i]
+	end := y
+	for end < len(grid[x])-1 && isDigit(grid[x][end+1]) {
+		end++
 	}
-	return string(runes)
+
+	return string(grid[x][start : end+1]), start
 }
 
-func findAdjacentNumbers(input []string) []string {
+func sumAdjacentNumbers(input []string) int {
 	var grid [][]rune
 	for _, line := range input {
 		grid = append(grid, []rune(line))
 	}
 
-	processed := make(map[string]struct{})
-	var fullNumbers []string
+	processed := make(map[string]bool)
+	var sum int
 
-	for i, row := range grid {
-		for j, ch := range row {
-			if isDigit(ch) {
-				adjacent, symbol := checkAdjacent(grid, i, j)
-				if adjacent {
-					// Extract full number horizontally and vertically
-					fullNumberH := extractFullNumber(grid, i, j, 0, 1) // Horizontal
-					fullNumberV := extractFullNumber(grid, i, j, 1, 0) // Vertical
+	for x, row := range grid {
+		for y, ch := range row {
+			if isDigit(ch) && checkAdjacent(grid, x, y) {
+				fullNumber, startPos := extractFullNumber(grid, x, y)
+				numberKey := fmt.Sprintf("%s-%d-%d", fullNumber, x, startPos)
 
-					if _, ok := processed[fullNumberH]; !ok && fullNumberH != string(ch) {
-						fmt.Printf("Adjacent number (Horizontal) at [%d,%d] to symbol '%c': %s\n", i, j, symbol, fullNumberH)
-						fullNumbers = append(fullNumbers, fullNumberH)
-						processed[fullNumberH] = struct{}{}
+				if !processed[numberKey] {
+					n, err := strconv.Atoi(fullNumber)
+					if err != nil {
+						fmt.Printf("Error converting string to int: %v\n", err)
+						continue
 					}
-					if _, ok := processed[fullNumberV]; !ok && fullNumberV != string(ch) {
-						fmt.Printf("Adjacent number (Vertical) at [%d,%d] to symbol '%c': %s\n", i, j, symbol, fullNumberV)
-						fullNumbers = append(fullNumbers, fullNumberV)
-						processed[fullNumberV] = struct{}{}
-					}
+					fmt.Printf("Found number: %d at position [%d,%d]\n", n, x, startPos)
+					sum += n
+
+					// Mark this full number with its starting position as processed
+					processed[numberKey] = true
 				}
 			}
 		}
 	}
-	return fullNumbers
-}
 
-func sumAdjacentNumbers(input []string) int {
-	fullNumbers := findAdjacentNumbers(input)
-	var sum int
-	for _, num := range fullNumbers {
-		n, err := strconv.Atoi(num)
-		if err != nil {
-			fmt.Printf("Error converting string to int: %v\n", err)
-			return 0
-		}
-		sum += n
-	}
 	return sum
 }
 func main() {
