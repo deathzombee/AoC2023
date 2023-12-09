@@ -12,6 +12,7 @@ import (
 type card struct {
 	cardNum          int
 	value            int
+	hits             int
 	winningNumbers   []int
 	scratchedNumbers []int
 }
@@ -20,12 +21,21 @@ func parseCard(line string) *card {
 	// split the line into a slice of strings by whitespace
 	// remove the : from the card number
 	// convert the card number to an int
+	// case if string.field(line)[12] == "|"
+	// use this to split the slice into winning numbers and scratched numbers
 	cNum, _ := strconv.Atoi(strings.Fields(line)[1][:len(strings.Fields(line)[1])-1])
-	cWinNums := parseNumbers(strings.Fields(line)[2:12])
-	cScratchedNums := parseNumbers(strings.Fields(line)[13:])
 	c := card{cardNum: cNum}
-	c.winningNumbers = cWinNums
-	c.scratchedNumbers = cScratchedNums
+	if strings.Fields(line)[12] == "|" {
+		cWinNums := parseNumbers(strings.Fields(line)[2:12])
+		cScratchedNums := parseNumbers(strings.Fields(line)[13:])
+		c.winningNumbers = cWinNums
+		c.scratchedNumbers = cScratchedNums
+	} else {
+		cWinNums := parseNumbers(strings.Fields(line)[2:7])
+		cScratchedNums := parseNumbers(strings.Fields(line)[8:])
+		c.winningNumbers = cWinNums
+		c.scratchedNumbers = cScratchedNums
+	}
 	return &c
 }
 
@@ -36,7 +46,6 @@ func parseNumbers(numbers []string) []int {
 		num, _ := strconv.Atoi(n)
 		nums = append(nums, num)
 	}
-	//sort.Ints(nums)
 	slices.Sort(nums)
 	return nums
 }
@@ -57,9 +66,39 @@ func countWinningNumbers(c *card) int {
 			count++
 		}
 	}
+	c.hits = count
 	return count
 
 }
+
+// Recursive function to process a card and its copies
+func processCard(c *card, remainingCards []*card) int {
+	if c.cardNum > len(remainingCards) || c.hits == 0 {
+		return 0
+	}
+
+	totalExtra := 0
+	for i := 0; i < c.hits; i++ {
+		nextCardIndex := c.cardNum - 1 + i + 1
+		if nextCardIndex < len(remainingCards) {
+			totalExtra += 1 + processCard(remainingCards[nextCardIndex], remainingCards)
+		}
+	}
+
+	return totalExtra
+}
+
+// Function to calculate the total number of cards including extras
+func totalCardsIncludingExtras(originalCards []*card) int {
+	total := len(originalCards) // Start with the count of original cards
+
+	for _, c := range originalCards {
+		total += processCard(c, originalCards)
+	}
+
+	return total
+}
+
 func main() {
 	var cards []*card
 	lines, err := utils.ReadLines("input.txt")
@@ -69,24 +108,25 @@ func main() {
 	}
 	for _, line := range lines {
 		card := parseCard(line)
-		// case if we have arguments
 		if len(os.Args) > 1 && os.Args[1] == "print" {
 			printCard(card)
 		}
-
-		//card value is the number of winning numbers on the card - 1 as an exponent of 2
 		if countWinningNumbers(card) == 0 {
 			card.value = 0
 		} else {
 			card.value = 1 << (countWinningNumbers(card) - 1)
 		}
 		cards = append(cards, card)
-
 	}
+
 	// add up the values of all the cards
 	var total int
 	for _, c := range cards {
 		total += c.value
 	}
-	fmt.Println("total:", total)
+	fmt.Println("Total value:", total)
+
+	// Calculate total number of cards including extras
+	totalIncludingExtras := totalCardsIncludingExtras(cards)
+	fmt.Println("Total scratchcards including extras:", totalIncludingExtras)
 }
