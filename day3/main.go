@@ -7,14 +7,32 @@ import (
 	"unicode"
 )
 
+// Check if a rune is a digit
 func isDigit(ch rune) bool {
 	return unicode.IsDigit(ch)
 }
 
+// Check if a rune is a symbol (not a digit and not '.')
 func isSymbol(ch rune) bool {
 	return !unicode.IsDigit(ch) && ch != '.'
 }
 
+// Extract the full number around a given position
+func extractFullNumber(grid [][]rune, x, y int) (string, int) {
+	start := y
+	for start > 0 && isDigit(grid[x][start-1]) {
+		start--
+	}
+
+	end := y
+	for end < len(grid[x])-1 && isDigit(grid[x][end+1]) {
+		end++
+	}
+
+	return string(grid[x][start : end+1]), start
+}
+
+// Check if a digit has a symbol in adjacent cells
 func checkAdjacent(grid [][]rune, x, y int) bool {
 	directions := []struct {
 		dx, dy int
@@ -34,22 +52,6 @@ func checkAdjacent(grid [][]rune, x, y int) bool {
 		}
 	}
 	return false
-}
-
-// Extracts the full number around position (x, y)
-
-func extractFullNumber(grid [][]rune, x, y int) (string, int) {
-	start := y
-	for start > 0 && isDigit(grid[x][start-1]) {
-		start--
-	}
-
-	end := y
-	for end < len(grid[x])-1 && isDigit(grid[x][end+1]) {
-		end++
-	}
-
-	return string(grid[x][start : end+1]), start
 }
 
 func sumAdjacentNumbers(input []string) int {
@@ -73,7 +75,6 @@ func sumAdjacentNumbers(input []string) int {
 						fmt.Printf("Error converting string to int: %v\n", err)
 						continue
 					}
-					fmt.Printf("Found number: %d at position [%d,%d]\n", n, x, startPos)
 					sum += n
 
 					// Mark this full number with its starting position as processed
@@ -85,6 +86,63 @@ func sumAdjacentNumbers(input []string) int {
 
 	return sum
 }
+
+// Extracts numbers and their positions from the grid
+func extractNumbersAndPositions(grid [][]rune) map[string][][2]int {
+	numPositions := make(map[string][][2]int)
+	for x, row := range grid {
+		for y, ch := range row {
+			if isDigit(ch) {
+				numStr, _ := extractFullNumber(grid, x, y)
+				numPositions[numStr] = append(numPositions[numStr], [2]int{x, y})
+			}
+		}
+	}
+	return numPositions
+}
+
+// Finds positions of '*' in the grid
+func findStarPositions(grid [][]rune) [][2]int {
+	var starPositions [][2]int
+	for x, row := range grid {
+		for y, ch := range row {
+			if ch == '*' {
+				starPositions = append(starPositions, [2]int{x, y})
+			}
+		}
+	}
+	return starPositions
+}
+
+// Finds adjacent numbers to '*' symbols and calculates their product
+func calculateGearRatios(starPositions [][2]int, numPositions map[string][][2]int) int {
+	var gearRatioSum int
+	for _, pos := range starPositions {
+		x, y := pos[0], pos[1]
+		var adjacentNums []int
+		for numStr, positions := range numPositions {
+			for _, p := range positions {
+				if abs(p[0]-x) <= 1 && abs(p[1]-y) <= 1 {
+					num, _ := strconv.Atoi(numStr)
+					adjacentNums = append(adjacentNums, num)
+					break
+				}
+			}
+		}
+		if len(adjacentNums) == 2 {
+			gearRatioSum += adjacentNums[0] * adjacentNums[1]
+		}
+	}
+	return gearRatioSum
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 func main() {
 	filename := "input.txt"
 
@@ -93,6 +151,16 @@ func main() {
 		fmt.Printf("Error reading the file: %v\n", err)
 		return
 	}
+
+	var grid [][]rune
+	for _, line := range lines {
+		grid = append(grid, []rune(line))
+	}
+
+	numPositions := extractNumbersAndPositions(grid)
+	starPositions := findStarPositions(grid)
+	gearRatioSum := calculateGearRatios(starPositions, numPositions)
 	sum := sumAdjacentNumbers(lines)
 	fmt.Printf("Sum of all adjacent numbers: %d\n", sum)
+	fmt.Printf("Sum of all gear ratios: %d\n", gearRatioSum)
 }
