@@ -7,17 +7,17 @@ import (
 	"unicode"
 )
 
-// Check if a rune is a digit
+// isDigit checks if a rune is a digit.
 func isDigit(ch rune) bool {
 	return unicode.IsDigit(ch)
 }
 
-// Check if a rune is a symbol (not a digit and not '.')
+// isSymbol checks if a rune is a symbol (not a digit and not '.').
 func isSymbol(ch rune) bool {
 	return !unicode.IsDigit(ch) && ch != '.'
 }
 
-// Extract the full number around a given position
+// extractFullNumber extracts the full number around a given position in the grid.
 func extractFullNumber(grid [][]rune, x, y int) (string, int) {
 	start := y
 	for start > 0 && isDigit(grid[x][start-1]) {
@@ -32,7 +32,7 @@ func extractFullNumber(grid [][]rune, x, y int) (string, int) {
 	return string(grid[x][start : end+1]), start
 }
 
-// Check if a digit has a symbol in adjacent cells
+// checkAdjacent checks if a digit has a symbol in adjacent cells.
 func checkAdjacent(grid [][]rune, x, y int) bool {
 	directions := []struct {
 		dx, dy int
@@ -54,13 +54,9 @@ func checkAdjacent(grid [][]rune, x, y int) bool {
 	return false
 }
 
-func sumAdjacentNumbers(input []string) int {
-	var grid [][]rune
-	for _, line := range input {
-		grid = append(grid, []rune(line))
-	}
-
-	processed := make(map[string]bool)
+// sumAdjacentNumbers calculates the sum of adjacent numbers in the grid.
+func sumAdjacentNumbers(grid [][]rune) int {
+	processed := make(map[string]struct{})
 	var sum int
 
 	for x, row := range grid {
@@ -69,16 +65,14 @@ func sumAdjacentNumbers(input []string) int {
 				fullNumber, startPos := extractFullNumber(grid, x, y)
 				numberKey := fmt.Sprintf("%s-%d-%d", fullNumber, x, startPos)
 
-				if !processed[numberKey] {
+				if _, exists := processed[numberKey]; !exists {
 					n, err := strconv.Atoi(fullNumber)
 					if err != nil {
 						fmt.Printf("Error converting string to int: %v\n", err)
 						continue
 					}
 					sum += n
-
-					// Mark this full number with its starting position as processed
-					processed[numberKey] = true
+					processed[numberKey] = struct{}{}
 				}
 			}
 		}
@@ -87,7 +81,7 @@ func sumAdjacentNumbers(input []string) int {
 	return sum
 }
 
-// Extracts numbers and their positions from the grid
+// extractNumbersAndPositions extracts numbers and their positions from the grid.
 func extractNumbersAndPositions(grid [][]rune) map[string][][2]int {
 	numPositions := make(map[string][][2]int)
 	for x, row := range grid {
@@ -101,7 +95,7 @@ func extractNumbersAndPositions(grid [][]rune) map[string][][2]int {
 	return numPositions
 }
 
-// Finds positions of '*' in the grid
+// findStarPositions finds positions of '*' in the grid.
 func findStarPositions(grid [][]rune) [][2]int {
 	var starPositions [][2]int
 	for x, row := range grid {
@@ -114,7 +108,7 @@ func findStarPositions(grid [][]rune) [][2]int {
 	return starPositions
 }
 
-// Finds adjacent numbers to '*' symbols and calculates their product
+// calculateGearRatios finds adjacent numbers to '*' symbols and calculates their product.
 func calculateGearRatios(starPositions [][2]int, numPositions map[string][][2]int) int {
 	var gearRatioSum int
 	for _, pos := range starPositions {
@@ -123,7 +117,11 @@ func calculateGearRatios(starPositions [][2]int, numPositions map[string][][2]in
 		for numStr, positions := range numPositions {
 			for _, p := range positions {
 				if abs(p[0]-x) <= 1 && abs(p[1]-y) <= 1 {
-					num, _ := strconv.Atoi(numStr)
+					num, err := strconv.Atoi(numStr)
+					if err != nil {
+						fmt.Printf("Error converting string to int: %v\n", err)
+						continue
+					}
 					adjacentNums = append(adjacentNums, num)
 					break
 				}
@@ -136,6 +134,7 @@ func calculateGearRatios(starPositions [][2]int, numPositions map[string][][2]in
 	return gearRatioSum
 }
 
+// abs returns the absolute value of x.
 func abs(x int) int {
 	if x < 0 {
 		return -x
@@ -143,24 +142,33 @@ func abs(x int) int {
 	return x
 }
 
-func main() {
-	filename := "input.txt"
-
+// readAndPrepareGrid reads the file and prepares the grid of runes.
+func readAndPrepareGrid(filename string) ([][]rune, error) {
 	lines, err := utils.ReadLines(filename)
 	if err != nil {
-		fmt.Printf("Error reading the file: %v\n", err)
-		return
+		return nil, err
 	}
 
 	var grid [][]rune
 	for _, line := range lines {
 		grid = append(grid, []rune(line))
 	}
+	return grid, nil
+}
+
+func main() {
+	filename := "input.txt"
+
+	grid, err := readAndPrepareGrid(filename)
+	if err != nil {
+		fmt.Printf("Error reading the file: %v\n", err)
+		return
+	}
 
 	numPositions := extractNumbersAndPositions(grid)
 	starPositions := findStarPositions(grid)
 	gearRatioSum := calculateGearRatios(starPositions, numPositions)
-	sum := sumAdjacentNumbers(lines)
+	sum := sumAdjacentNumbers(grid)
 	fmt.Printf("Sum of all adjacent numbers: %d\n", sum)
 	fmt.Printf("Sum of all gear ratios: %d\n", gearRatioSum)
 }
