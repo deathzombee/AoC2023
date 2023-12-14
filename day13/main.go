@@ -1,107 +1,121 @@
 package main
 
 import (
-	_ "embed"
+	"AoC2023/utils"
 	"fmt"
-	"strings"
-	"sync"
 	"time"
 )
 
-//go:embed input.txt
-var in string
+// returns the accumulation of columns left of the mirror plus rows above the mirror times 100
+func acc(grid []string, swap bool) int {
+	vert := false
+	// try horizontal match first
+	mid := midPoint(intVals(grid, false), swap) // Horizontal
+	// if no horizontal match, try vertical
+	if mid == -1 {
+		vert = true
+		mid = midPoint(intVals(grid, true), swap) // Vertical
+	}
 
-type result struct {
-	gridIndex int
-	value     int
+	if vert {
+		// columns left of the mirror
+		return mid + 1
+	}
+	// rows above the mirror for horizontal match * 100
+	return 100 * (mid + 1)
 }
 
-func rotateCCW(grid []string) []string {
-	if len(grid) == 0 {
-		return grid
-	}
+// midPoint returns the index of the middle number in the list of numbers
+func midPoint(numbers []int, swap bool) int {
+	var mid, start int
+	for i := 0; i < len(numbers)-1; i++ {
+		start = i
+		var swapFound bool
+		for end := i + 1; start >= 0 && end < len(numbers); end++ {
+			xor := numbers[start] ^ numbers[end]
+			valid := bW(xor, swap)
+			swapFound = swapFound || (swap && valid && xor > 0)
 
-	rows := len(grid)
-	cols := len(grid[0])
-	var rotatedGrid []string
-
-	for col := 0; col < cols; col++ {
-		var newRow strings.Builder
-		for row := 0; row < rows; row++ {
-			newRow.WriteByte(grid[row][col])
-		}
-		rotatedGrid = append(rotatedGrid, newRow.String())
-	}
-	return rotatedGrid
-}
-
-func process(lines []string, old int) int {
-	for i := 0; i < len(lines)-1; i++ {
-		if i == old {
-			continue
-		}
-
-		if lines[i] == lines[i+1] {
-			for j := 0; i-j >= 0 && i+1+j < len(lines); j++ {
-				if lines[i-j] != lines[i+1+j] {
-					goto next
-				}
-			}
-			return i + 1
-		}
-	next:
-	}
-	return 0
-}
-
-func main() {
-	input := strings.Split(in, "\n")
-	total := 0
-	var wg sync.WaitGroup
-	resultsChan := make(chan result) // Using an unbuffered channel
-
-	t := time.Now()
-	first := 0 // Starting index of a new batch
-
-	// Function to process a batch of lines
-	processBatch := func(start, end int) {
-		grid := input[start:end]
-		wg.Add(1)
-		go func(grid []string, idx int) {
-			defer wg.Done()
-			v := process(grid, -1)
-			h := process(rotateCCW(grid), -1)
-			resultsChan <- result{gridIndex: idx, value: v*100 + h}
-		}(grid, start)
-	}
-
-	for i, line := range input {
-		if line == "" || i == len(input)-1 {
-			var end int
-			if i == len(input)-1 { // i.e. last line
-				end = i + 1
+			if valid {
+				mid = i
 			} else {
-				end = i
+				mid = -1
+				break
 			}
-
-			if first < end {
-				processBatch(first, end)
-			}
-			first = i + 1 // Update the start of the next batch
+			start--
+		}
+		if mid != -1 && (!swap || swapFound) {
+			return mid
 		}
 	}
-	// Closing the results channel when all goroutines are done
-	go func() {
-		wg.Wait()
-		close(resultsChan)
-	}()
+	return -1
+}
 
-	// Collecting results from the goroutines
-	for res := range resultsChan {
-		total += res.value
+// bW returns true if xor is 0 and swap is false or if xor is a power of 2 and swap is true
+// otherwise returns false
+func bW(xor int, swap bool) bool {
+	return (xor == 0 && !swap) || (swap && (xor&(xor-1)) == 0)
+}
+
+// intVals returns a list of ints representing the binary values of the grids
+// big endian
+func intVals(g []string, vert bool) []int {
+	var ints []int
+	if !vert {
+		for _, grid := range g {
+			num := hNum(grid)
+			ints = append(ints, num)
+		}
+	} else {
+		for i := 0; i < len(g[0]); i++ {
+			num := vNum(g, i)
+			ints = append(ints, num)
+		}
+	}
+	return ints
+}
+
+func hNum(g string) int {
+	var num int
+	for i, char := range g {
+		if char == '#' {
+			num += 1 << i
+		}
+	}
+	return num
+}
+
+func vNum(g []string, index int) int {
+	var num int
+	for i, grid := range g {
+		if grid[index] == '#' {
+			num += 1 << i
+		}
+	}
+	return num
+}
+func main() {
+	lines, _ := utils.ReadLines("input.txt")
+
+	var sum, sum2 int
+	var g []string
+	var t, t2 time.Duration
+	for i, line := range lines {
+		if len(line) != 0 {
+			g = append(g, line)
+		}
+		if len(line) == 0 || i == len(lines)-1 {
+			start := time.Now()
+			sum += acc(g, false)
+			t += time.Since(start)
+
+			start = time.Now()
+			sum2 += acc(g, true)
+			t2 += time.Since(start)
+			g = []string{}
+		}
 	}
 
-	elapsed := time.Since(t)
-	fmt.Println(elapsed)
-	fmt.Printf("Final Total: %d\n", total)
+	fmt.Println("Part 1: ", sum, " time:", t)
+	fmt.Println("Part 2: ", sum2, " time:", t2)
 }
