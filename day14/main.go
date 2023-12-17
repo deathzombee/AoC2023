@@ -7,28 +7,26 @@ import (
 	"time"
 )
 
-var getSeqCount int
-
 type Direction func([][]int) [][]int
 
-func readGrid(s []string) (table [][]int, err error) {
-	table = make([][]int, len(s))
+func readGrid(s []string) (grid [][]int, err error) {
+	grid = make([][]int, len(s))
 	for y, line := range s {
-		table[y] = make([]int, len(line))
+		grid[y] = make([]int, len(line))
 		for x := 0; x < len(line); x++ {
 			switch line[x] {
 			case 'O':
-				table[y][x] = 2
+				grid[y][x] = 2
 			case '#':
-				table[y][x] = 1
+				grid[y][x] = 1
 			case '.':
-				table[y][x] = 0
+				grid[y][x] = 0
 			default:
-				return table, errors.New("invalid input")
+				return grid, errors.New("invalid input")
 			}
 		}
 	}
-	return table, err
+	return grid, err
 }
 func north(table [][]int) [][]int {
 	for x := range table[0] {
@@ -96,7 +94,6 @@ func east(table [][]int) [][]int {
 }
 
 func sequence(values []int) (frequency, offset int, ok bool) {
-	getSeqCount++
 
 	if len(values) < 10 {
 		return 0, 0, false
@@ -171,9 +168,7 @@ func cycledLoad(s []string, numCycles int) (int, error) {
 			results = append(results, result)
 			if frequency, offset, ok := sequence(results); ok {
 				mod := (numCycles - offset) % frequency
-				fmt.Println("frequency:", frequency, "offset:", offset, "ok:", ok, "mod:", mod, "numCycles:", numCycles)
 				result = results[offset+mod-1]
-				fmt.Println("index:", offset+mod-1)
 				break
 			}
 		}
@@ -191,6 +186,5 @@ func main() {
 	part2, _ := cycledLoad(output, 1000000000)
 	fmt.Println("p2 time:", time.Since(time2))
 	fmt.Println("part 2:", part2)
-	fmt.Println("getSeqCount:", getSeqCount)
 
 }
