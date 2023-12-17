@@ -28,69 +28,69 @@ func readGrid(s []string) (grid [][]int, err error) {
 	}
 	return grid, err
 }
-func north(table [][]int) [][]int {
-	for x := range table[0] {
+func north(grid [][]int) [][]int {
+	for x := range grid[0] {
 		stopPoint := 0
-		for y, value := range table {
+		for y, value := range grid {
 			if value[x] == 1 {
 				stopPoint = y + 1
 			} else if value[x] == 2 {
 				if y != stopPoint {
-					table[stopPoint][x], table[y][x] = table[y][x], 0
+					grid[stopPoint][x], grid[y][x] = grid[y][x], 0
 				}
 				stopPoint++
 			}
 		}
 	}
-	return table
+	return grid
 }
-func south(table [][]int) [][]int {
-	for x := range table[0] {
-		stopPoint := len(table) - 1
-		for y := len(table) - 1; y >= 0; y-- {
-			if table[y][x] == 1 {
+func south(grid [][]int) [][]int {
+	for x := range grid[0] {
+		stopPoint := len(grid) - 1
+		for y := len(grid) - 1; y >= 0; y-- {
+			if grid[y][x] == 1 {
 				stopPoint = y - 1
-			} else if table[y][x] == 2 {
+			} else if grid[y][x] == 2 {
 				if y != stopPoint {
-					table[stopPoint][x], table[y][x] = table[y][x], 0
+					grid[stopPoint][x], grid[y][x] = grid[y][x], 0
 				}
 				stopPoint--
 			}
 		}
 	}
-	return table
+	return grid
 }
-func west(table [][]int) [][]int {
-	for y := range table {
+func west(grid [][]int) [][]int {
+	for y := range grid {
 		stopPoint := 0
-		for x, value := range table[y] {
+		for x, value := range grid[y] {
 			if value == 1 {
 				stopPoint = x + 1
 			} else if value == 2 {
 				if x != stopPoint {
-					table[y][stopPoint], table[y][x] = table[y][x], 0
+					grid[y][stopPoint], grid[y][x] = grid[y][x], 0
 				}
 				stopPoint++
 			}
 		}
 	}
-	return table
+	return grid
 }
-func east(table [][]int) [][]int {
-	for y := range table {
-		stopPoint := len(table[0]) - 1
-		for x := len(table[0]) - 1; x >= 0; x-- {
-			if table[y][x] == 1 {
+func east(grid [][]int) [][]int {
+	for y := range grid {
+		stopPoint := len(grid[0]) - 1
+		for x := len(grid[0]) - 1; x >= 0; x-- {
+			if grid[y][x] == 1 {
 				stopPoint = x - 1
-			} else if table[y][x] == 2 {
+			} else if grid[y][x] == 2 {
 				if x != stopPoint {
-					table[y][stopPoint], table[y][x] = table[y][x], 0
+					grid[y][stopPoint], grid[y][x] = grid[y][x], 0
 				}
 				stopPoint--
 			}
 		}
 	}
-	return table
+	return grid
 }
 
 func sequence(values []int) (frequency, offset int, ok bool) {
@@ -121,19 +121,19 @@ func sequence(values []int) (frequency, offset int, ok bool) {
 
 func loadCalc(s []string, transform Direction) (int, error) {
 	var result int
-	if table, err := readGrid(s); err != nil {
+	if grid, err := readGrid(s); err != nil {
 		return 0, err
 	} else {
-		table = transform(table)
+		grid = transform(grid)
 		var numRocks int
-		for y := 0; y < len(table); y++ {
+		for y := 0; y < len(grid); y++ {
 			numRocks = 0
-			for x := 0; x < len(table[y]); x++ {
-				if table[y][x] == 2 {
+			for x := 0; x < len(grid[y]); x++ {
+				if grid[y][x] == 2 {
 					numRocks++
 				}
 			}
-			result += numRocks * (len(table) - y)
+			result += numRocks * (len(grid) - y)
 		}
 	}
 	return result, nil
@@ -142,28 +142,28 @@ func loadCalc(s []string, transform Direction) (int, error) {
 func cycledLoad(s []string, numCycles int) (int, error) {
 	var result int
 
-	if table, err := readGrid(s); err != nil {
+	if grid, err := readGrid(s); err != nil {
 		return 0, err
 	} else {
 		var results []int
 
 		for {
-			table = north(table)
-			table = west(table)
-			table = south(table)
-			table = east(table)
+			grid = north(grid)
+			grid = west(grid)
+			grid = south(grid)
+			grid = east(grid)
 
 			numRocks := 0
 			result = 0
 
-			for y := 0; y < len(table); y++ {
+			for y := 0; y < len(grid); y++ {
 				numRocks = 0
-				for x := 0; x < len(table[y]); x++ {
-					if table[y][x] > 1 {
+				for x := 0; x < len(grid[y]); x++ {
+					if grid[y][x] > 1 {
 						numRocks++
 					}
 				}
-				result += numRocks * (len(table) - y)
+				result += numRocks * (len(grid) - y)
 			}
 			results = append(results, result)
 			if frequency, offset, ok := sequence(results); ok {
