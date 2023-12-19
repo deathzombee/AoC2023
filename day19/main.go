@@ -125,8 +125,7 @@ func run(rules map[string]Rule, parts Part) int {
 		pc = label
 	}
 }
-
-func Part1(input []string) int {
+func generate(input []string) (map[string]Rule, []Part) {
 	var workflowInput []string
 	var partInput []string
 	partSection := false
@@ -143,7 +142,6 @@ func Part1(input []string) int {
 			workflowInput = append(workflowInput, line)
 		}
 	}
-
 	var rules = make(map[string]Rule)
 	for _, line := range workflowInput {
 		rule := parseRule(line)
@@ -155,7 +153,9 @@ func Part1(input []string) int {
 		p := parseParts(line)
 		parts = append(parts, p)
 	}
-
+	return rules, parts
+}
+func Part1(rules map[string]Rule, parts []Part) int {
 	var res int
 	for _, part := range parts {
 		res += run(rules, part)
@@ -163,19 +163,81 @@ func Part1(input []string) int {
 	return res
 }
 
-func Part2(input []string) int {
-	// Implement Part 2 logic here
-	return 0
+func cloneMap(original map[rune][2]int) map[rune][2]int {
+	c := make(map[rune][2]int, 4)
+	for k, v := range original {
+		c[k] = v
+	}
+	return c
 }
 
+func count(workflows map[string]Rule, workflow string, values map[rune][2]int) int {
+	if workflow == "R" {
+		return 0
+	} else if workflow == "A" {
+		product := 1
+		for _, v := range values {
+			product *= v[1] - v[0] + 1
+		}
+		return product
+	}
+
+	total := 0
+	for _, r := range workflows[workflow].chk {
+		// low high for this variable
+		v := values[rune(r.v)]
+
+		// initialize true and false ranges
+		var tv [2]int
+		var fv [2]int
+		switch r.cond {
+		case '<':
+			// if the condition is <, then the true range is from the low to the value - 1
+			// and the false range is from the value to the high
+			tv = [2]int{v[0], r.value - 1}
+			fv = [2]int{r.value, v[1]}
+		case '>':
+			// if the condition is >, then the true range is from the value + 1 to the high
+			// and the false range is from the low to the value
+			tv = [2]int{r.value + 1, v[1]}
+			fv = [2]int{v[0], r.value}
+		default:
+			total += count(workflows, r.dest, values)
+			continue
+		}
+
+		// branch for true into its own recursion with a copy of the values
+		if tv[0] <= tv[1] {
+			v2 := cloneMap(values)
+			v2[rune(r.v)] = tv
+			total += count(workflows, r.dest, v2)
+		}
+
+		// false value keeps going through this rules checks
+		// unless its low is greater than its high
+		if fv[0] > fv[1] {
+			break
+		}
+		// update the values for the next check
+		values[rune(r.v)] = fv
+	}
+	// total keeps track of the product between calls
+	return total
+}
 func main() {
+	vals := map[rune][2]int{
+		'x': {1, 4000},
+		'm': {1, 4000},
+		'a': {1, 4000},
+		's': {1, 4000}}
 	start := time.Now()
-
 	input, _ := utils.ReadLines("input.txt")
-	fmt.Println("part1: ", Part1(input))
-	fmt.Println(time.Since(start))
-
+	ru, pa := generate(input)
+	fmt.Println("input parsing:", time.Since(start))
 	start = time.Now()
-	fmt.Println("part2: ", Part2(input))
-	fmt.Println(time.Since(start))
+	p1 := Part1(ru, pa)
+	fmt.Println("part1: ", p1, time.Since(start))
+	start = time.Now()
+	p2 := count(ru, "in", vals)
+	fmt.Println("part2: ", p2, time.Since(start))
 }
