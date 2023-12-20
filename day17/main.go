@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	PlaneVertical = iota
-	PlaneHorizontal
-	PlaneUndecided // special plane for start position
-	Infinity       = 1 << 30
+	planeVertical = iota
+	planeHorizontal
+	planeUndecided // special plane for start position
+	infinity       = 1 << 30
 )
 
-type Graph struct {
-	vertices      []Vertex
+type graph struct {
+	vertices      []vertex
 	width, height int
 }
 
@@ -24,7 +24,7 @@ type position struct {
 	x, y int
 }
 
-type Vertex struct {
+type vertex struct {
 	pos            position
 	dir            int
 	visited        bool
@@ -34,7 +34,7 @@ type Vertex struct {
 	heapIndex      int
 }
 
-type priorityQueue []*Vertex
+type priorityQueue []*vertex
 
 // priorityQueue implements heap.Interface and holds Vertices.
 // The items are ordered by totalEntropy, the lower the better.
@@ -57,7 +57,7 @@ func (pq *priorityQueue) Swap(i, j int) {
 // Push pushes an item to the priorityQueue
 func (pq *priorityQueue) Push(x interface{}) {
 	n := len(*pq)
-	item := x.(*Vertex)
+	item := x.(*vertex)
 	item.heapIndex = n
 	*pq = append(*pq, item)
 }
@@ -75,18 +75,18 @@ func (pq *priorityQueue) Pop() interface{} {
 	return item
 }
 
-// update modifies the priority and value of an Item in the queue.
-func (pq *priorityQueue) update(item *Vertex) {
+// Update modifies the priority and value of an Item in the queue.
+func (pq *priorityQueue) Update(item *vertex) {
 	heap.Fix(pq, item.heapIndex)
 }
 
-func (g *Graph) getEdges(u *Vertex, minSteps int, maxSteps int) []*Vertex {
+func (g *graph) getEdges(u *vertex, minSteps int, maxSteps int) []*vertex {
 	// there are at most 6 edges (2 for each direction) and they are the vertices that are at most maxSteps away
-	edges := make([]*Vertex, 0, 6)
+	edges := make([]*vertex, 0, 6)
 
-	if u.dir == PlaneHorizontal || u.dir == PlaneUndecided {
+	if u.dir == planeHorizontal || u.dir == planeUndecided {
 		for entropy, dy := 0, 1; dy <= maxSteps; dy++ {
-			v := g.getVertex(u.pos.x, u.pos.y+dy, PlaneVertical)
+			v := g.getVertex(u.pos.x, u.pos.y+dy, planeVertical)
 			if v != nil {
 				entropy += v.entropy
 				if dy >= minSteps {
@@ -96,7 +96,7 @@ func (g *Graph) getEdges(u *Vertex, minSteps int, maxSteps int) []*Vertex {
 			}
 		}
 		for entropy, dy := 0, 1; dy <= maxSteps; dy++ {
-			v := g.getVertex(u.pos.x, u.pos.y-dy, PlaneVertical)
+			v := g.getVertex(u.pos.x, u.pos.y-dy, planeVertical)
 			if v != nil {
 				entropy += v.entropy
 				if dy >= minSteps {
@@ -107,9 +107,9 @@ func (g *Graph) getEdges(u *Vertex, minSteps int, maxSteps int) []*Vertex {
 		}
 	}
 
-	if u.dir == PlaneVertical || u.dir == PlaneUndecided {
+	if u.dir == planeVertical || u.dir == planeUndecided {
 		for entropy, dx := 0, 1; dx <= maxSteps; dx++ {
-			v := g.getVertex(u.pos.x+dx, u.pos.y, PlaneHorizontal)
+			v := g.getVertex(u.pos.x+dx, u.pos.y, planeHorizontal)
 			if v != nil {
 				entropy += v.entropy
 				if dx >= minSteps {
@@ -119,7 +119,7 @@ func (g *Graph) getEdges(u *Vertex, minSteps int, maxSteps int) []*Vertex {
 			}
 		}
 		for entropy, dx := 0, 1; dx <= maxSteps; dx++ {
-			v := g.getVertex(u.pos.x-dx, u.pos.y, PlaneHorizontal)
+			v := g.getVertex(u.pos.x-dx, u.pos.y, planeHorizontal)
 			if v != nil {
 				entropy += v.entropy
 				if dx >= minSteps {
@@ -133,7 +133,7 @@ func (g *Graph) getEdges(u *Vertex, minSteps int, maxSteps int) []*Vertex {
 	return edges
 }
 
-func (g *Graph) getVertex(x int, y int, plane int) *Vertex {
+func (g *graph) getVertex(x int, y int, plane int) *vertex {
 	if x < 0 || y < 0 || y >= g.height || x >= g.width {
 		return nil
 	}
@@ -157,24 +157,24 @@ func parseInput(input []byte) [][]int {
 	return grid
 }
 
-func graphFromGrid(grid [][]int) Graph {
-	graph := Graph{}
-	vertices := make([]Vertex, 0, len(grid)*len(grid[0])*2)
+func graphFromGrid(grid [][]int) graph {
+	graph := graph{}
+	vertices := make([]vertex, 0, len(grid)*len(grid[0])*2)
 	graph.height = len(grid)
 	for y := range grid {
 		graph.width = len(grid[y])
 		for x := range grid[y] {
-			vertices = append(vertices, Vertex{
+			vertices = append(vertices, vertex{
 				pos:          position{x: x, y: y},
-				dir:          PlaneVertical,
+				dir:          planeVertical,
 				entropy:      grid[y][x],
-				totalEntropy: Infinity,
+				totalEntropy: infinity,
 			})
-			vertices = append(vertices, Vertex{
+			vertices = append(vertices, vertex{
 				pos:          position{x: x, y: y},
-				dir:          PlaneHorizontal,
+				dir:          planeHorizontal,
 				entropy:      grid[y][x],
-				totalEntropy: Infinity,
+				totalEntropy: infinity,
 			})
 		}
 	}
@@ -187,17 +187,17 @@ func dijkstra(grid [][]int, minSteps int, maxSteps int) int {
 	graph := graphFromGrid(grid)
 	vertices := graph.vertices
 	vertices[0].totalEntropy = 0
-	vertices[0].dir = PlaneUndecided
+	vertices[0].dir = planeUndecided
 	pq := make(priorityQueue, len(vertices))
 	for i := 0; i < len(vertices); i++ {
 		vertices[i].heapIndex = i
 		pq[i] = &vertices[i]
 	}
 	heap.Init(&pq)
-	var u *Vertex
+	var u *vertex
 	var edges = &vertices[len(vertices)-1]
 	for {
-		u = heap.Pop(&pq).(*Vertex)
+		u = heap.Pop(&pq).(*vertex)
 		if u.pos.x == edges.pos.x && u.pos.y == edges.pos.y {
 			break
 		}
@@ -205,7 +205,7 @@ func dijkstra(grid [][]int, minSteps int, maxSteps int) int {
 		for _, edges := range graph.getEdges(u, minSteps, maxSteps) {
 			if u.totalEntropy+edges.ajustedEntropy < edges.totalEntropy {
 				edges.totalEntropy = u.totalEntropy + edges.ajustedEntropy
-				pq.update(edges)
+				pq.Update(edges)
 			}
 		}
 	}
