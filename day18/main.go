@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -17,22 +18,73 @@ type interval struct {
 	Start, End point
 }
 
-// process input return a string with directions and steps, and a slice of comma enclosed color codes
-func processInput(input []string) (string, []string) {
-	var directions string
+func processInput(input []string) (string, string) {
+	var directions []string
 	var colors []string
+
 	for _, line := range input {
-		parts := strings.Split(line, ",")
+		//parts := strings.Split(line, " ")
+		ps := strings.Fields(line)
+		prt1 := ps[0] + " " + ps[1]
+		prt2 := ps[2]
+		parts := []string{prt1, prt2}
+		var directionPart string
+		var colorPart string
+
 		for _, part := range parts {
 			part = strings.TrimSpace(part)
 			if part[0] == 'R' || part[0] == 'L' || part[0] == 'U' || part[0] == 'D' {
-				directions += part + ", "
-			} else {
-				colors = append(colors, part)
+				directionPart += part + " "
+				// add the integer part to the directions before the parenthesis
+			} else if strings.HasPrefix(part, "(#") && strings.HasSuffix(part, ")") {
+				colorPart = part
 			}
 		}
+		if directionPart != "" {
+			directions = append(directions, directionPart)
+		}
+
+		if colorPart != "" {
+			// Extract the hexadecimal part from the colorPart
+			colorHex := strings.TrimPrefix(strings.TrimSuffix(colorPart, ")"), "(#")
+
+			// Extract the first 5 characters of the hexadecimal as a number
+			colorDigits := colorHex[:5]
+			colorNumber, err := strconv.ParseInt(colorDigits, 16, 64)
+			if err != nil {
+				fmt.Printf("Error parsing colorDigits: %v\n", err)
+				continue
+			}
+
+			// Extract the last digit of the hexadecimal
+			directionDigit := colorHex[5]
+
+			// Map the directionDigit to a direction
+			var mappedDirection string
+			switch directionDigit {
+			case '0':
+				mappedDirection = "R"
+			case '1':
+				mappedDirection = "D"
+			case '2':
+				mappedDirection = "L"
+			case '3':
+				mappedDirection = "U"
+			default:
+				fmt.Printf("Invalid direction digit: %c\n", directionDigit)
+				continue
+			}
+
+			// Add the mapped direction and number to the colors
+			colors = append(colors, mappedDirection+" "+strconv.FormatInt(colorNumber, 10))
+		}
 	}
-	return directions, colors
+
+	// Join the colors slice into a single string
+	colorsStr := strings.Join(colors, ", ")
+	directionsStr := strings.Join(directions, ", ")
+
+	return directionsStr, colorsStr
 }
 func processInstructions(instructions string) ([]interval, []point) {
 	var allIntervals []interval
@@ -132,11 +184,22 @@ func part1(input string) int {
 	picksArea := per/2 + int(area) + 1
 	return picksArea
 }
+func part2(input string) int {
+	allIntervals, points := processInstructions(input)
+	per := calculatePathPerimeter(points)
+	area := calculateArea(allIntervals)
+	picksArea := per/2 + int(area) + 1
+	return picksArea
+}
 func main() {
 	input, _ := utils.ReadLines("input.txt")
-	instr, _ := processInput(input)
+	instr, cc := processInput(input)
 	t := time.Now()
 	p1 := part1(instr)
 	fmt.Println("Part 1:", time.Since(t))
 	fmt.Println("Area:", p1)
+	t2 := time.Now()
+	p2 := part2(cc)
+	fmt.Println("Part 2:", time.Since(t2))
+	fmt.Println("Area:", p2)
 }
