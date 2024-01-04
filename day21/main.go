@@ -29,7 +29,12 @@ func parseInput(filePath string) (*graph, position, error) {
 	if err != nil {
 		return nil, position{}, err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+
+		}
+	}(file)
 
 	scanner := bufio.NewScanner(file)
 	grid := make([][]vertex, 0)
@@ -99,6 +104,82 @@ func bfs(g *graph, start position, steps int) int {
 	return len(current)
 }
 
+// copy the graph i times in the x and y direction
+func expandGraph(g *graph, factor int) *graph {
+	newWidth := g.width * factor
+	newHeight := g.height * factor
+	expandedVertices := make([][]vertex, newHeight)
+
+	for y := 0; y < newHeight; y++ {
+		expandedVertices[y] = make([]vertex, newWidth)
+		for x := 0; x < newWidth; x++ {
+			// Copy the vertex from the original graph, adjusting for the expansion factor
+			originalVertex := g.vertices[y%g.height][x%g.width]
+			expandedVertices[y][x] = vertex{position{x, y}, originalVertex.plot, -1}
+		}
+	}
+
+	return &graph{expandedVertices, newWidth, newHeight}
+}
+
+func calculateCoefficients(points []int) (int, int, int) {
+	a := (points[2] + points[0] - 2*points[1]) / 2
+	b := points[1] - points[0] - a
+	c := points[0]
+	fmt.Println("p[0]", points[0], "p[1]", points[1], "p[2]", points[2])
+	return a, b, c
+}
+
+func predictValue(a, b, c, n int) int {
+	return a*n*n + b*n + c
+}
+func part2(g *graph, startPos position) int {
+	factor := 5 // Expansion factor
+	expandedGraph := expandGraph(g, factor)
+
+	// Determine step values based on the size of the expanded graph
+	size := len(g.vertices)
+	fmt.Println("size", size)
+	half := size / 2
+	fmt.Println("half", half)
+	steps := []int{half, half + size, half + 2*size}
+	fmt.Println("startPos", startPos)
+	startPos = position{(startPos.x * factor) + 2, (startPos.y * factor) + 2}
+	fmt.Println("startPos", startPos)
+	fmt.Println("len of expandedGraph", len(expandedGraph.vertices))
+
+	// Gather data points
+
+	dataPoints := make([]int, len(steps))
+	for i, step := range steps {
+		dataPoints[i] = bfs(expandedGraph, startPos, step)
+		fmt.Printf("Steps: %d, Reachable Plots: %d\n", step, dataPoints[i])
+	}
+
+	// Calculate coefficients for polynomial regression
+	a, b, c := calculateCoefficients(dataPoints)
+	fmt.Println("Coefficients: ", a, b, c)
+
+	// Predict the value for a large number of steps
+	largeStepCount := (26501365 - startPos.x) / size // Example large step count that equals a grid of size 131 with starting position 65,65
+	predictedValue := predictValue(a, b, c, largeStepCount)
+	printGraph(expandedGraph)
+	return predictedValue
+}
+
+// print expanded graph
+func printGraph(g *graph) {
+	for y := 0; y < g.height; y++ {
+		for x := 0; x < g.width; x++ {
+			if g.vertices[y][x].plot {
+				fmt.Print(".")
+			} else {
+				fmt.Print("#")
+			}
+		}
+		fmt.Println()
+	}
+}
 func main() {
 	inputFile := "input.txt"
 	g, startPos, err := parseInput(inputFile)
@@ -108,8 +189,12 @@ func main() {
 	}
 
 	t := time.Now()
-	stepCount := DefaultStepCount // Change this variable to set a custom step count
+	stepCount := DefaultStepCount
 	result := bfs(g, startPos, stepCount)
 	fmt.Println("Number of garden plots reachable in", stepCount, "steps:", result)
 	fmt.Println("Time taken:", time.Since(t))
+	t2 := time.Now()
+	result2 := part2(g, startPos)
+	fmt.Println("Number of garden plots reachable in 26501365 steps:", result2)
+	fmt.Println("Time taken:", time.Since(t2))
 }
