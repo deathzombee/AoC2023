@@ -117,18 +117,7 @@ func (g *graph) getNeighbors(pos position) []position {
 	}
 	return neighbors
 }
-func (g *graph) getNeighbors2(pos position) []position {
-	var directions []position
 
-	neighbors := make([]position, 0, len(directions))
-	for _, dir := range directions {
-		newPos := position{pos.x + dir.x, pos.y + dir.y}
-		if newPos.x >= 0 && newPos.x < g.width && newPos.y >= 0 && newPos.y < g.height && g.vertices[newPos.y][newPos.x].valid {
-			neighbors = append(neighbors, newPos)
-		}
-	}
-	return neighbors
-}
 func dfs(g *graph, pos position, visited map[position]bool, steps int, maxSteps *int, furthestPos *position) {
 	if visited[pos] {
 		return
