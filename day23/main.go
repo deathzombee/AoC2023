@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"time"
 )
 
 type position struct {
@@ -21,7 +22,11 @@ type vertex struct {
 type graph struct {
 	vertices      [][]vertex
 	width, height int
+	start         position
+	end           position
 }
+
+type intersectionGraph map[position][][2]interface{}
 
 func (v *vertex) isSlope() bool {
 
@@ -43,10 +48,14 @@ func (v *vertex) slopeDirection() position {
 	return position{0, 0}
 }
 
-func parseInput(filePath string) (*graph, position, error) {
+var (
+	directions = []position{{0, -1}, {0, 1}, {1, 0}, {-1, 0}}
+)
+
+func parseInput(filePath string) (*graph, position, position, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, position{}, err
+		return nil, position{}, position{}, err
 	}
 	defer func(file *os.File) {
 		err := file.Close()
@@ -57,7 +66,7 @@ func parseInput(filePath string) (*graph, position, error) {
 
 	scanner := bufio.NewScanner(file)
 	grid := make([][]vertex, 0)
-	var startPos position
+	var startPos, endPos position
 	startPosFound := false
 	y := 0
 
@@ -66,9 +75,12 @@ func parseInput(filePath string) (*graph, position, error) {
 		row := make([]vertex, len(line))
 		for x, c := range line {
 			valid := c == '.' || c == '^' || c == '>' || c == 'v' || c == '<'
-			if c == '.' && !startPosFound {
-				startPos = position{x, y}
-				startPosFound = true
+			if c == '.' {
+				endPos = position{x, y} // Update end position every time a '.' is found
+				if !startPosFound {
+					startPos = position{x, y}
+					startPosFound = true
+				}
 			}
 			row[x] = vertex{position{x, y}, valid, c, -1, nil}
 		}
@@ -77,14 +89,13 @@ func parseInput(filePath string) (*graph, position, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, position{}, err
+		return nil, position{}, position{}, err
 	}
 
 	if !startPosFound {
-		return nil, position{}, fmt.Errorf("no starting position found")
+		return nil, position{}, position{}, fmt.Errorf("no starting position found")
 	}
-
-	return &graph{vertices: grid, width: len(grid[0]), height: len(grid)}, startPos, nil
+	return &graph{vertices: grid, width: len(grid[0]), height: len(grid), start: startPos, end: endPos}, startPos, endPos, nil
 }
 
 func (g *graph) getNeighbors(pos position) []position {
@@ -108,8 +119,6 @@ func (g *graph) getNeighbors(pos position) []position {
 }
 func (g *graph) getNeighbors2(pos position) []position {
 	var directions []position
-
-	directions = []position{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}
 
 	neighbors := make([]position, 0, len(directions))
 	for _, dir := range directions {
@@ -158,17 +167,112 @@ func part1(g *graph, startPos position) (int, []position) {
 	return maxSteps, path
 }
 
+func gDist(cur position, dist int, seen map[position]bool, intersections []position, neighbors map[position][]position) (position, int) {
+	for _, p := range intersections {
+		if p == cur {
+			return cur, dist
+		}
+	}
+
+	for _, nb := range neighbors[cur] {
+		if !seen[nb] {
+			seen[cur] = true
+			return gDist(nb, dist+1, seen, intersections, neighbors)
+		}
+	}
+
+	return position{}, 0
+}
+
+func bfs(start, end position, score int, seen map[position]bool, gr intersectionGraph) []int {
+	if start == end {
+		return []int{score}
+	}
+
+	var scores []int
+
+	for _, pair := range gr[start] {
+
+		current := pair[0].(position)
+		dist := pair[1].(int)
+		if !seen[current] {
+			seen[current] = true
+			scores = append(scores, bfs(current, end, score+dist, seen, gr)...)
+			delete(seen, current)
+		}
+	}
+
+	return scores
+}
+
+func Part2(input *graph) int {
+	intersections, neighbors := neighborsIntersections(input)
+	gr := gGraph(intersections, neighbors)
+	vals := bfs(input.start, input.end, 0, map[position]bool{input.start: true}, gr)
+
+	return gMax(vals)
+}
+
+func gGraph(intersections []position, neighbors map[position][]position) intersectionGraph {
+	gr := make(intersectionGraph)
+
+	for _, i := range intersections {
+		for _, n := range neighbors[i] {
+			t, d := gDist(n, 1, map[position]bool{i: true}, intersections, neighbors)
+			gr[i] = append(gr[i], [2]interface{}{t, d})
+		}
+	}
+	return gr
+}
+
+func neighborsIntersections(g *graph) ([]position, map[position][]position) {
+	vtxs := g.vertices
+	intersections := []position{g.start, g.end}
+
+	neighbors := make(map[position][]position)
+
+	// Corrected loops to iterate over 2D slice
+	for y, row := range vtxs {
+		for x, vtx := range row {
+			if vtx.valid {
+				currentPos := position{x, y}
+				neighbors[currentPos] = []position{}
+				for _, dir := range directions {
+					nb := position{x + dir.x, y + dir.y}
+					if nb.x >= 0 && nb.x < g.width && nb.y >= 0 && nb.y < g.height && vtxs[nb.y][nb.x].valid {
+						neighbors[currentPos] = append(neighbors[currentPos], nb)
+					}
+				}
+				if len(neighbors[currentPos]) > 2 {
+					intersections = append(intersections, currentPos)
+				}
+			}
+		}
+	}
+	return intersections, neighbors
+}
+
+func gMax(result []int) int {
+	s := result[0]
+	for _, score := range result {
+		if score > s {
+			s = score
+		}
+	}
+	return s
+}
+
 func printGraph(g *graph, path []position) {
-	pathMap := make(map[position]bool)
+	m := make(map[position]bool)
 	for _, pos := range path {
-		pathMap[pos] = true
+		m[pos] = true
 	}
 
 	for _, row := range g.vertices {
 		for _, v := range row {
 			if v.isSlope() {
 				fmt.Printf("%c ", v.char)
-			} else if pathMap[v.pos] {
+			} else if m[v.pos] {
 				fmt.Print("O ") // Print the slope character
 			} else if v.valid {
 				fmt.Print(". ")
@@ -181,12 +285,16 @@ func printGraph(g *graph, path []position) {
 }
 
 func main() {
-	g, startPos, err := parseInput("input.txt")
+	g, startPos, _, err := parseInput("input.txt")
 	if err != nil {
 		fmt.Println("Error parsing input:", err)
 		return
 	}
+	t1 := time.Now()
 	p1, _ := part1(g, startPos)
-	fmt.Println("Longest hike with slopes considered:", p1)
+	fmt.Println("Longest hike with slopes considered:", p1, time.Since(t1))
 	//printGraph(g, path)
+	t2 := time.Now()
+	p2 := Part2(g)
+	fmt.Println("Longest hike with slopes not considered:", p2, time.Since(t2))
 }
