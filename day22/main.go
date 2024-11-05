@@ -33,6 +33,7 @@ func (b *Brick) collide(b2 *Brick) bool {
 		return true
 	}
 }
+
 func makeBricks(input []string) ([]Brick, int, bool) {
 	var bricks []Brick
 	for _, row := range input {
@@ -132,6 +133,7 @@ func part2(input []string) int {
 	}
 	return sum
 }
+
 func main() {
 	in, err := os.ReadFile("input.txt")
 	if err != nil {
@@ -140,6 +142,7 @@ func main() {
 	}
 	input := strings.Split(string(in), "\n")
 	part1 := part1(input)
+	// why is there one more than the answer?
 	fmt.Println("The answer to part1:", part1)
 	part2 := part2(input)
 	fmt.Println("The answer to part2:", part2)
