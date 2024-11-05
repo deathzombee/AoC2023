@@ -40,8 +40,6 @@ func makeBricks(input []string) ([]Brick, int, bool) {
 		items := strings.FieldsFunc(row, func(r rune) bool {
 			return r == ',' || r == '~'
 		})
-
-		// Convert strings to integers
 		nums := make([]int, 6)
 		var err error
 		for i, item := range items {
@@ -63,6 +61,7 @@ func makeBricks(input []string) ([]Brick, int, bool) {
 
 		bricks = append(bricks, brick)
 	}
+	// we sort the bricks in the z direction
 	slices.SortFunc(bricks, func(a, b Brick) int {
 		return min(a.z, a.z2) - min(b.z, b.z2)
 	})
@@ -135,15 +134,16 @@ func part2(input []string) int {
 }
 
 func main() {
-	in, err := os.ReadFile("input.txt")
+	in, err := os.ReadFile("input_.txt")
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		return
 	}
-	input := strings.Split(string(in), "\n")
-	part1 := part1(input)
-	// why is there one more than the answer?
+	// the newline at the end of file is removed or we get an empty brick
+	input := strings.TrimRight(string(in), "\n")
+	content := strings.Split(string(input), "\n")
+	part1 := part1(content)
 	fmt.Println("The answer to part1:", part1)
-	part2 := part2(input)
+	part2 := part2(content)
 	fmt.Println("The answer to part2:", part2)
 }
