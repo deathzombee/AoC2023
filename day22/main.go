@@ -134,7 +134,7 @@ func part2(input []string) int {
 }
 
 func main() {
-	in, err := os.ReadFile("input_.txt")
+	in, err := os.ReadFile("input.txt")
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		return
